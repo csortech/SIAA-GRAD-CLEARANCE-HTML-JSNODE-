@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Graduation Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+    <!-- EDIT NAV BAR -->
+<nav class="navbar navbar-expand-lg navbar-dark shadow-sm" style="background-color: #180054;">    
+    <div class="container">
+        <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="#">
+            <img src="/logo.png" alt="School Logo" height="38" class="d-inline-block align-text-top rounded-circle bg-white p-1">
+            <span>STUDENT PORTAL</span>
+        </a>
+        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+    </div>
+</nav>
+
+    <div class="container mt-4" style="max-width: 800px;">
+        
+        <!-- HEADEEEER -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body p-4 d-flex align-items-center justify-content-between">
+                <div>
+                    <h3 class="card-title fw-bold text-primary mb-1" id="studentName">Welcome, Student</h3>
+                    <p class="text-muted mb-0">Student ID: <span id="studentId" class="fw-bold">---</span></p>
+                    <p class="text-muted mb-0">Course: <span id="studentCourse" class="fw-bold text-dark">---</span></p>
+                    <p class="text-muted mb-0">Email: <span id="studentEmail">---</span></p>
+                </div>
+                <span class="badge bg-secondary fs-6 p-2" id="headerStatusBadge">Checking Status...</span>
+            </div>
+        </div>
+
+        <!-- CLEARANCE STATUS -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white pt-3 pb-3">
+                <h5 class="mb-0 text-dark fw-bold">Graduation Clearance & Passes</h5>
+            </div>
+            <div class="card-body p-4">
+
+                <!-- PENDING STATUS / WITH PAYMENT HERE  -->
+                <div id="pendingContainer" class="d-none">
+                    <div class="alert alert-warning border-warning p-4 rounded-3 text-center mb-4" role="alert">
+                        <h4 class="alert-heading fw-bold mb-2">Status: PENDING CLEARANCE</h4>
+                        <p class="mb-0">Please settle your graduation fee below to complete your clearance processing.</p>
+                    </div>
+
+                    <!-- PAYMENT OPTIONSSS -->
+                    <div class="card border-primary p-3 text-center shadow-sm">
+                        <h5 class="fw-bold text-primary">Settle Graduation Fee</h5>
+                        <p class="text-muted small">Fee Amount: ₱1,500.00</p>
+                        <div>
+                            <a href="/pay" class="btn btn-success fw-bold px-4 py-2">
+                                Pay Graduation Fee (GCash / Maya)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CLEARED STATUS WITH QR CODEEEE -->
+                <div id="clearedContainer" class="d-none">
+                    <div class="alert alert-success border-success p-4 rounded-3 text-center mb-4" role="alert">
+                        <h4 class="alert-heading fw-bold mb-2">Status: CONFIRMED GRADUATING</h4>
+                        <p class="mb-0">Congratulations! You are cleared for graduation. Access your entry passes below.</p>
+                    </div>
+
+                    <div class="row g-4">
+
+                        <!-- STUDENT PASS -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-0 shadow-sm text-center p-3 bg-white">
+                                <h5 class="fw-bold text-success">Student Pass</h5>
+                                <div id="studentQrContainer" class="my-2">
+                                    <img id="studentQrImage" src="" alt="Student QR Code" class="img-fluid border p-2 rounded" style="max-width: 180px;">
+                                </div>
+                                <div class="bg-light p-2 rounded text-start mt-2 border">
+                                    <small class="d-block"><strong>Name:</strong> <span id="qrStudentName"></span></small>
+                                    <small class="d-block"><strong>ID No:</strong> <span id="qrStudentId"></span></small>
+                                    <small class="d-block"><strong>Course:</strong> <span id="qrStudentCourse"></span></small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- GUEST PASS -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-0 shadow-sm text-center p-3 bg-white">
+                                <h5 class="fw-bold text-info">Companion Pass (1 Guest)</h5>
+                                <p class="text-muted small mb-2">Enter parent/guardian full name to generate guest pass</p>
+                                
+                                <div class="mb-2">
+                                    <input type="text" id="companionNameInput" class="form-control form-control-sm" placeholder="e.g. Maria Dela Cruz (Mother)">
+                                </div>
+                                <button class="btn btn-info text-white btn-sm mb-2 fw-bold" onclick="generateCompanionQR()">
+                                    Generate Companion QR
+                                </button>
+
+                                <div id="companionQrCard" class="d-none">
+                                    <img id="companionQrImage" src="" alt="Companion QR Code" class="img-fluid border p-2 rounded my-2" style="max-width: 180px;">
+                                    <div class="bg-light p-2 rounded text-start border">
+                                        <small class="d-block"><strong>Guest:</strong> <span id="companionDisplayName"></span></small>
+                                        <small class="d-block"><strong>Accompanying:</strong> <span id="companionStudentRef"></span></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let currentStudent = null;
+
+        async function fetchStudentDashboard() {
+            try {
+                const response = await fetch('/api/student/me');
+
+                if (response.status === 401 || response.redirected) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const data = await response.json();
+                currentStudent = data.student;
+
+                // Populate Header Info
+                document.getElementById('studentName').innerText = `Welcome, ${data.student.fullName}`;
+                document.getElementById('studentId').innerText = data.student.studentId;
+                document.getElementById('studentCourse').innerText = data.student.course || 'N/A';
+                document.getElementById('studentEmail').innerText = data.student.email;
+
+                const statusBadge = document.getElementById('headerStatusBadge');
+
+                if (data.student.isCleared) {
+                    statusBadge.className = 'badge bg-success fs-6 p-2';
+                    statusBadge.innerText = 'CLEARED';
+
+                    document.getElementById('clearedContainer').classList.remove('d-none');
+                    document.getElementById('pendingContainer').classList.add('d-none');
+
+                    // Student QR details
+                    document.getElementById('studentQrImage').src = data.qrImageBase64;
+                    document.getElementById('qrStudentName').innerText = data.student.fullName;
+                    document.getElementById('qrStudentId').innerText = data.student.studentId;
+                    document.getElementById('qrStudentCourse').innerText = data.student.course || 'N/A';
+                } else {
+                    statusBadge.className = 'badge bg-warning text-dark fs-6 p-2';
+                    statusBadge.innerText = 'PENDING';
+
+                    document.getElementById('pendingContainer').classList.remove('d-none');
+                    document.getElementById('clearedContainer').classList.add('d-none');
+                }
+
+            } catch (err) {
+                console.error("Error fetching student profile:", err);
+            }
+        }
+
+        async function generateCompanionQR() {
+            const guestName = document.getElementById('companionNameInput').value.trim();
+            if (!guestName) {
+                alert("Please enter the guest/companion's full name first.");
+                return;
+            }
+
+            const response = await fetch('/api/student/companion-qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ companionName: guestName })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('companionQrImage').src = data.companionQrBase64;
+                document.getElementById('companionDisplayName').innerText = guestName;
+                document.getElementById('companionStudentRef').innerText = `${currentStudent.fullName} (${currentStudent.studentId})`;
+                document.getElementById('companionQrCard').classList.remove('d-none');
+            }
+        }
+
+        fetchStudentDashboard();
+    </script>
+</body>
+</html>
