@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Clearance Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>School Admin Clearance Dashboard</h2>
+            <div>
+                <a href="/login.html" class="btn btn-outline-secondary me-2">Student Portal</a>
+                <a href="/admin-logout" class="btn btn-danger">Logout Admin</a>
+            </div>
+        </div>
+
+        <div class="card shadow">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Student Records</h5>
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Full Name</th>
+                                <th>Course</th>
+                                <th>Email</th>
+                                <th>Clearance Status</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentTable">
+                            <!-- Student rows rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadStudents() {
+            const response = await fetch('/api/admin/students');
+
+            if (response.status === 401 || response.redirected) {
+                window.location.href = '/adminlogin.html';
+                return;
+            }
+
+            const students = await response.json();
+            const tbody = document.getElementById('studentTable');
+            tbody.innerHTML = '';
+
+            students.forEach(student => {
+                const isCleared = student.isCleared;
+                const statusBadge = isCleared 
+                    ? '<span class="badge bg-success">CLEARED</span>' 
+                    : '<span class="badge bg-warning text-dark">PENDING</span>';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${student.studentId}</strong></td>
+                        <td>${student.fullName}</td>
+                        <td>${student.course || 'N/A'}</td>
+                        <td>${student.email}</td>
+                        <td>${statusBadge}</td>
+                        <td class="text-center">
+                            <div class="d-inline-flex gap-2">
+                                <button class="btn btn-success btn-sm" onclick="setClearance('${student.id}', true)">
+                                    Approve Clearance
+                                </button>
+                                <button class="btn btn-warning btn-sm" onclick="setClearance('${student.id}', false)">
+                                    Mark as Pending
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteStudent('${student.id}', '${student.fullName}')">
+                                    Delete Account
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function setClearance(id, status) {
+            await fetch('/api/admin/set-clearance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, isCleared: status })
+            });
+            loadStudents();
+        }
+
+        async function deleteStudent(id, name) {
+            if (confirm(`Are you sure you want to permanently delete the account for ${name}?`)) {
+                const response = await fetch(`/api/admin/student/${id}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Student account deleted successfully.');
+                    loadStudents();
+                } else {
+                    alert(result.message || 'Failed to delete student.');
+                }
+            }
+        }
+
+        loadStudents();
+    </script>
+</body>
+</html>
